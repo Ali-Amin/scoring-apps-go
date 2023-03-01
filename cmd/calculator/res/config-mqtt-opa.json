@@ -43,6 +43,9 @@
       "weights": {
         "path": "/v1/data/dcf_scoring/weights"
       },
+      "attestationOpts": {
+        "path": "/v1/data/dcf_scoring/attestation_opts"
+      },
       "provider": {
         "host": "localhost",
         "protocol": "http",

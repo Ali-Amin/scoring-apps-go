@@ -1,14 +1,26 @@
 {
     "classes": {
         "default": {
-            "pki": 1,
-            "tls": 1,
-            "tpm": 1
+            "attestationOpts": {
+                "cadenceThresholdMins": 60,
+                "timeRangeMins": 60
+            },
+            "weights": {
+                "pki": 1,
+                "tls": 1,
+                "tpm": 1
+            }
         },
         "production": {
-            "pki": 2,
-            "tls": 2,
-            "tpm": 1
+            "attestationOpts": {
+                "cadenceThresholdMins": 30,
+                "timeRangeMins": 60
+            },
+            "weights": {
+                "pki": 2,
+                "tls": 2,
+                "tpm": 1
+            }
         }
     }
 }

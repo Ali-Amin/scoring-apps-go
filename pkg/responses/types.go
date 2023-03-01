@@ -16,6 +16,8 @@ package responses
 
 import (
 	"encoding/json"
+	"errors"
+
 	"github.com/oklog/ulid/v2"
 	"github.com/project-alvarium/scoring-apps-go/pkg/documents"
 )
@@ -37,6 +39,33 @@ func (p *OpaWeightsResponse) UnmarshalJSON(data []byte) error {
 	}
 
 	p.Weights = a.Result[0]
+	return nil
+}
+
+type OpaAttestationOptsResponse struct {
+	CadenceThresholdMins int `json:"cadenceThresholdMins,omitempty"`
+	TimeRangeMins        int `json:"timeRangeMins,omitempty"`
+}
+
+func (p *OpaAttestationOptsResponse) UnmarshalJSON(data []byte) error {
+	type alias struct {
+		Result []interface{} `json:"result,omitempty"`
+	}
+
+	a := alias{}
+
+	err := json.Unmarshal(data, &a)
+	if err != nil {
+		return err
+	}
+
+	opts, ok := a.Result[0].(OpaAttestationOptsResponse)
+	if !ok {
+		return errors.New("bad opa attestation options response type")
+	}
+
+	p.CadenceThresholdMins = opts.CadenceThresholdMins
+	p.TimeRangeMins = opts.TimeRangeMins
 	return nil
 }
 

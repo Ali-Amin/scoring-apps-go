@@ -64,3 +64,56 @@ func TestWeightUnmarshal(t *testing.T) {
 		})
 	}
 }
+
+func TestAttestationOptsUnmarshal(t *testing.T) {
+	ok := AttestationOptions{
+		CadenceThresholdMins: 50,
+		TimeRangeMins:        2,
+	}
+
+	okTimeRangeMinsZero := AttestationOptions{
+		CadenceThresholdMins: 50,
+		TimeRangeMins:        0,
+	}
+
+	badCadenceNegative := AttestationOptions{
+		CadenceThresholdMins: -1,
+		TimeRangeMins:        2,
+	}
+
+	badCadenceZero := AttestationOptions{
+		CadenceThresholdMins: 0,
+		TimeRangeMins:        2,
+	}
+
+	badTimeRangeMinsNegative := AttestationOptions{
+		CadenceThresholdMins: 50,
+		TimeRangeMins:        -1,
+	}
+
+	tests := []struct {
+		name        string
+		opts        AttestationOptions
+		expectError bool
+	}{
+		{"Positive attestation cadence and range", ok, false},
+		{"Positive attestation cadence and zero range", okTimeRangeMinsZero, false},
+		{"Negative attestation cadence", badCadenceNegative, true},
+		{"Zero attestation cadence", badCadenceZero, true},
+		{"Negative cycle range", badTimeRangeMinsNegative, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, _ := json.Marshal(tt.opts)
+			var opts AttestationOptions
+			err := json.Unmarshal(b, &opts)
+			if err == nil && tt.expectError {
+				t.Errorf("Test did not throw error when expected to: %s", tt.name)
+			}
+			if err != nil && !tt.expectError {
+				t.Errorf("Test did threw error when not expected to.\n test: %b\nerror:%s", opts, err)
+			}
+
+		})
+	}
+}

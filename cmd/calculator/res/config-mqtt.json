@@ -13,7 +13,9 @@
           "port": 1883
         },
         "cleanness": false,
-        "topics": ["alvarium-calculator"]
+        "topics": [
+          "alvarium-calculator"
+        ]
       }
     }
   },
@@ -24,8 +26,12 @@
       "edges": [
         {
           "collectionName": "scoring",
-          "from": ["scores"],
-          "to": ["data"]
+          "from": [
+            "scores"
+          ],
+          "to": [
+            "data"
+          ]
         }
       ],
       "graphName": "example-graph",
@@ -34,16 +40,22 @@
         "protocol": "http",
         "port": 8529
       },
-      "vertexes": ["scores"]
+      "vertexes": [
+        "scores"
+      ]
     }
   },
   "policy": {
     "type": "local",
     "config": {
-      "weights": [
+      "dcf": [
         {
           "classifier": "production",
-          "items": [
+          "attestationOpts": {
+            "minCadenceMins": 30,
+            "timeRangeMins": 60
+          },
+          "weights": [
             {
               "key": "pki",
               "value": 2
@@ -60,7 +72,11 @@
         },
         {
           "classifier": "default",
-          "items": [
+          "attestationOpts": {
+            "minCadenceMins": 60,
+            "timeRangeMins": 60
+          },
+          "weights": [
             {
               "key": "pki",
               "value": 1

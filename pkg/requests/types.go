@@ -16,11 +16,11 @@ package requests
 
 import "encoding/json"
 
-type OpaWeightsRequest struct {
+type OpaRequest struct {
 	Classifier string `json:"class,omitempty"`
 }
 
-func (r *OpaWeightsRequest) MarshalJSON() ([]byte, error) {
+func (r *OpaRequest) MarshalJSON() ([]byte, error) {
 	type InputAlias struct {
 		Classifier string `json:"class,omitempty"`
 	}

@@ -17,12 +17,13 @@ package policy
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/project-alvarium/scoring-apps-go/internal/config"
 	"github.com/project-alvarium/scoring-apps-go/pkg/policies"
 	"github.com/project-alvarium/scoring-apps-go/pkg/requests"
 	"github.com/project-alvarium/scoring-apps-go/pkg/responses"
-	"io/ioutil"
-	"net/http"
 )
 
 type OpenPolicyProvider struct {
@@ -39,7 +40,7 @@ func (p *OpenPolicyProvider) GetWeights(classifier string) ([]policies.Weight, e
 
 	// Send request
 	url := p.cfg.Provider.Uri() + p.cfg.WeightsInfo.Path
-	request := requests.OpaWeightsRequest{Classifier: classifier}
+	request := requests.OpaRequest{Classifier: classifier}
 	b, err := json.Marshal(&request)
 
 	if err != nil {
@@ -74,4 +75,42 @@ func (p *OpenPolicyProvider) GetWeights(classifier string) ([]policies.Weight, e
 		weights = append(weights, weight)
 	}
 	return weights, nil
+}
+
+func (p *OpenPolicyProvider) GetAttestationOpts(classifier string) (policies.AttestationOptions, error) {
+	// Send request
+	url := p.cfg.Provider.Uri() + p.cfg.AttestationInfo.Path
+	request := requests.OpaRequest{Classifier: classifier}
+	b, err := json.Marshal(&request)
+
+	if err != nil {
+		return policies.AttestationOptions{}, err
+	}
+	result, err := http.Post(
+		url,
+		"application/json",
+		bytes.NewBuffer(b),
+	)
+	if err != nil {
+		return policies.AttestationOptions{}, err
+	}
+
+	// Read body
+	b, err = ioutil.ReadAll(result.Body)
+	if err != nil {
+		return policies.AttestationOptions{}, err
+	}
+	result.Body.Close()
+	// Unmarshal body and convert it to dcf attestation options
+	var response responses.OpaAttestationOptsResponse
+	err = json.Unmarshal(b, &response)
+	if err != nil {
+		return policies.AttestationOptions{}, err
+	}
+
+	opts := policies.AttestationOptions{
+		CadenceThresholdMins: response.CadenceThresholdMins,
+		TimeRangeMins:        response.TimeRangeMins,
+	}
+	return opts, nil
 }

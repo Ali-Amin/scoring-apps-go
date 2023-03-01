@@ -22,22 +22,31 @@ import (
 )
 
 type LocalPolicyProvider struct {
-	Weights []policies.DcfPolicy
+	policy []policies.DcfPolicy
 }
 
 func (lp *LocalPolicyProvider) GetWeights(classifier string) ([]policies.Weight, error) {
-	for _, w := range lp.Weights {
-		if w.Name == classifier {
-			return w.Weights, nil
+	for _, p := range lp.policy {
+		if p.Name == classifier {
+			return p.Weights, nil
 		}
 	}
-	return nil, fmt.Errorf("Classifier not defined %s", classifier)
+	return nil, fmt.Errorf("classifier not defined %s", classifier)
+}
+
+func (lp *LocalPolicyProvider) GetAttestationOpts(classifier string) (policies.AttestationOptions, error) {
+	for _, p := range lp.policy {
+		if p.Name == classifier {
+			return p.AttestationOptions, nil
+		}
+	}
+	return policies.AttestationOptions{}, fmt.Errorf("classifier not defined %s", classifier)
 }
 
 func NewLocalPolicyProvider(cfg config.LocalPolicyConfig) PolicyProvider {
 
 	localPolicyProvider := LocalPolicyProvider{}
-	localPolicyProvider.Weights = cfg.WeightsInfo
+	localPolicyProvider.policy = cfg.Dcf
 
 	return &localPolicyProvider
 }

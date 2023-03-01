@@ -15,11 +15,13 @@
 package documents
 
 import (
+	"math"
+	"sort"
+	"time"
+
 	"github.com/oklog/ulid/v2"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/contracts"
 	"github.com/project-alvarium/scoring-apps-go/pkg/policies"
-	"math"
-	"time"
 )
 
 const (
@@ -77,7 +79,19 @@ type Score struct {
 func NewScore(dataRef string, annotations []Annotation, policy policies.DcfPolicy) Score {
 	var totalWeight, passedWeight float32
 	var passed int
+
+	// Annotations with unique score calculation separated from other "generic" annotations
+	var attestAnnotations []Annotation
+	var genericAnnotations []Annotation
 	for _, a := range annotations {
+		if a.Kind == string(contracts.AnnotationAttestation) {
+			attestAnnotations = append(attestAnnotations, a)
+		} else {
+			genericAnnotations = append(genericAnnotations, a)
+		}
+	}
+
+	for _, a := range genericAnnotations {
 		w := policy.FetchWeight(a.Kind)
 		totalWeight += float32(w.Value)
 		if a.IsSatisfied {
@@ -85,6 +99,11 @@ func NewScore(dataRef string, annotations []Annotation, policy policies.DcfPolic
 			passedWeight += float32(w.Value)
 		}
 	}
+	// Attestation score calculation separate from others then added to total
+	attestationWeight := policy.FetchWeight(string(contracts.AnnotationAttestation))
+	passedAttest := calcAttestationScore(attestAnnotations, policy.AttestationOptions, attestationWeight.Value)
+	passedWeight += passedAttest
+	totalWeight += float32(attestationWeight.Value)
 
 	confidence := float64(passedWeight / totalWeight)
 	confidence = math.Round(confidence*100) / 100
@@ -99,6 +118,70 @@ func NewScore(dataRef string, annotations []Annotation, policy policies.DcfPolic
 		Timestamp:  time.Now(),
 	}
 	return s
+}
+
+// Attestation score calculated as the ratio of successful attestation cycles
+// to the total expected total number of attestation cycles up until "now"
+//
+// The ratio is normalized on the attestation annotation weight set by policy and
+// added to the rest of the annotations' weight
+//
+// An optional CycleRange parameter set by policy can be used to limit how far
+// back the calculation goes when checking attestations if interest in
+// attestation periodicity is short-term only. This can be useful when e.g. the
+// device has been down for a prolonged period of time a long time ago and
+// it is desired that this does not effect current confidence score
+func calcAttestationScore(attestAnnotations []Annotation, opts policies.AttestationOptions, weight int) (passedWeight float32) {
+	var earliestAttestLimit time.Time
+	var filteredAnnotations []Annotation
+	if opts.TimeRangeMins == 0 { // if value not set, use device lifetime
+		filteredAnnotations = attestAnnotations
+	} else {
+		earliestAttestLimit = time.Now().Add(-time.Minute * (time.Duration(opts.TimeRangeMins)))
+		for _, a := range attestAnnotations {
+			if a.Timestamp.After(earliestAttestLimit.Add(-time.Minute * time.Duration(opts.CadenceThresholdMins))) {
+				filteredAnnotations = append(filteredAnnotations, a)
+			}
+		}
+	}
+
+	if len(filteredAnnotations) == 0 { // no attestations found
+		return 0
+	}
+
+	sort.Slice(filteredAnnotations, func(i, j int) bool {
+		return attestAnnotations[i].Timestamp.Before(attestAnnotations[j].Timestamp)
+	})
+
+	if opts.TimeRangeMins == 0 { // get earliest time if no window specified
+		earliestAttestLimit = filteredAnnotations[0].Timestamp
+	}
+
+	var trustedAttestationPeriod float32
+	var prevAttest Annotation
+	for _, a := range filteredAnnotations {
+		if a.Timestamp.Before(earliestAttestLimit) {
+			trustedAttestationPeriod = float32(opts.CadenceThresholdMins) - float32(earliestAttestLimit.Sub(a.Timestamp).Minutes())
+			continue
+		} else if (prevAttest == Annotation{}) {
+			prevAttest = a
+			continue
+		}
+
+		trustedAttestationPeriod += float32(
+			math.Min(a.Timestamp.Sub(prevAttest.Timestamp).Minutes(), float64(opts.CadenceThresholdMins)),
+		)
+		prevAttest = a
+	}
+
+	if (prevAttest != Annotation{}) {
+		trustedAttestationPeriod += float32(
+			math.Min(time.Since(prevAttest.Timestamp).Minutes(), float64(opts.CadenceThresholdMins)),
+		)
+	}
+
+	passedWeight = trustedAttestationPeriod / float32(time.Since(earliestAttestLimit).Minutes()) * float32(weight)
+	return passedWeight
 }
 
 // Trust represents a document in the "trust" edge collection

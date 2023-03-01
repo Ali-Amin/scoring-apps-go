@@ -16,12 +16,15 @@ package policies
 
 import (
 	"encoding/json"
+
+	"github.com/pkg/errors"
 )
 
 // DcfPolicy is a struct for defining behaviors of the DCF
 type DcfPolicy struct {
-	Name    string   `json:"classifier,omitempty"` // Name uniquely identifies the policy
-	Weights []Weight `json:"items,omitempty"`      // Weights contains all of the individual annotation weights
+	Name               string             `json:"classifier,omitempty"`      // Name uniquely identifies the policy
+	Weights            []Weight           `json:"items,omitempty"`           // Weights contains all of the individual annotation weights
+	AttestationOptions AttestationOptions `json:"attestationOpts,omitempty"` // constants pertaining to attestation annotation score calc
 }
 
 func (p *DcfPolicy) FetchWeight(key string) Weight {
@@ -65,5 +68,34 @@ func (w *Weight) UnmarshalJSON(data []byte) (err error) {
 	}
 	w.AnnotationKey = a.AnnotationKey
 	w.Value = a.Value
+	return nil
+}
+
+// Defines factors that affect the score calculation of attestation annotations
+type AttestationOptions struct {
+	CadenceThresholdMins int `json:"cadenceThresholdMins,omitempty"` // The maximum interval in minutes between attestation cycles
+	TimeRangeMins        int `json:"timeRange,omitempty"`            // The last N attestation cycles to check during score calculation
+}
+
+func (opts *AttestationOptions) UnmarshalJSON(data []byte) (err error) {
+	type alias struct {
+		CadenceThresholdMins int `json:"cadenceThresholdMins,omitempty"`
+		TimeRangeMins        int `json:"timeRange,omitempty"`
+	}
+	a := alias{}
+	if err = json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+
+	// Validation
+	if a.CadenceThresholdMins <= 0 {
+		return errors.New("CadenceThresholdMins must be a positive integer")
+	}
+	if a.TimeRangeMins < 0 {
+		return errors.New("CycleRange must be 0 or a positive integer")
+	}
+
+	opts.CadenceThresholdMins = a.CadenceThresholdMins
+	opts.TimeRangeMins = a.TimeRangeMins
 	return nil
 }

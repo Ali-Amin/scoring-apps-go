@@ -20,4 +20,5 @@ import (
 
 type PolicyProvider interface {
 	GetWeights(classifier string) ([]policies.Weight, error)
+	GetAttestationOpts(classifier string) (policies.AttestationOptions, error)
 }

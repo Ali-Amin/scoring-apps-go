@@ -17,6 +17,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/config"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/contracts"
 	"github.com/project-alvarium/scoring-apps-go/pkg/policies"
@@ -124,16 +125,21 @@ type PolicyInfo struct {
 }
 
 type OpenPolicyConfig struct {
-	Provider    config.ServiceInfo `json:"provider,omitempty"`
-	WeightsInfo OpaWeightsInfo     `json:"weights,omitempty"`
+	Provider        config.ServiceInfo `json:"provider,omitempty"`
+	WeightsInfo     OpaWeightsInfo     `json:"weights,omitempty"`
+	AttestationInfo OpaAttestationInfo `json:"attestationOpts,omitempty"`
 }
 
 type OpaWeightsInfo struct {
 	Path string `json:"path,omitempty"`
 }
 
+type OpaAttestationInfo struct {
+	Path string `json:"path,omitempty"`
+}
+
 type LocalPolicyConfig struct {
-	WeightsInfo []policies.DcfPolicy `json:"weights,omitempty"`
+	Dcf []policies.DcfPolicy `json:"dcf,omitempty"`
 }
 
 func (p *PolicyInfo) UnmarshalJSON(data []byte) (err error) {
@@ -177,7 +183,7 @@ func (p *PolicyInfo) UnmarshalJSON(data []byte) (err error) {
 
 func (p *LocalPolicyConfig) UnmarshalJSON(data []byte) (err error) {
 	type alias struct {
-		WeightsInfo []policies.DcfPolicy `json:"weights,omitempty"`
+		Dcf []policies.DcfPolicy `json:"dcf,omitempty"`
 	}
 	a := alias{}
 
@@ -187,8 +193,8 @@ func (p *LocalPolicyConfig) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	// Validate all annotation types loaded from the config
-	for _, info := range a.WeightsInfo {
-		for _, weight := range info.Weights {
+	for _, policy := range a.Dcf {
+		for _, weight := range policy.Weights {
 			key := contracts.AnnotationType(weight.AnnotationKey)
 			if !key.Validate() {
 				return fmt.Errorf("invalid AnnotatorType value provided %s", key)
@@ -196,7 +202,7 @@ func (p *LocalPolicyConfig) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 
-	p.WeightsInfo = a.WeightsInfo
+	p.Dcf = a.Dcf
 	return nil
 }
 
